@@ -2,7 +2,7 @@
 
 Status: requirements captured; implementation not started.
 
-This document records the product decisions from the initial requirements interview. Technical proposals are not yet verified against current provider documentation or a working prototype.
+This document records the product decisions from the initial requirements interview. See [the feasibility assessment](feasibility.md) for subsequent documentation research, constraints, and validation gates. Recommendations in that assessment do not change the confirmed requirements here without an explicit decision.
 
 ## 1. Purpose
 
@@ -18,15 +18,18 @@ The app is a client for each user's accounts, not a public portal into the opera
 | --- | --- |
 | Audience | Public app; users access their own accounts. |
 | Framework | SvelteKit. |
-| Deployment | GitHub Pages; static preferred, not an absolute prohibition on a future backend. |
+| Deployment | GitHub Pages with a custom domain; static preferred, not an absolute prohibition on a future backend. |
+| Provider registrations | Neither Microsoft nor Google has been registered for this project yet. |
 | Initial providers | Personal OneDrive and personal Google Drive. |
 | Accounts | Multiple connected accounts per provider. |
 | Connection persistence | Remember connections across visits where provider-supported authentication allows it. |
+| Google reconnect | An explicit reconnect action after returning to the app or authorization expiry is acceptable; continuous authorization is not required. |
 | Initial permissions | Read-only; request write permissions only when write features arrive. |
 | Browsing | Basic folder navigation; no search, previews, sorting/filtering controls, or dedicated shared-with-me view required for v1. |
 | Selection | Multiple files and folders in the current folder only; navigating to another folder clears selection. |
 | Downloads | One ZIP per action for selected items or an entire folder, preserving directory structure. |
 | Google-native documents | Export Docs, Sheets, and Slides to DOCX, XLSX, and PPTX respectively. |
+| Oversized Google exports | In v1, an export exceeding the standard endpoint's 10 MB per-export limit may be omitted with a clear error report. A larger-export alternative is not a launch requirement. |
 | Partial failures | Continue with available files and provide a clear omissions/error report. |
 | Expected scale | Usually tens of files and less than approximately 100 MB per download. |
 | Enforced size limits | Warn on large jobs, but do not impose an application-defined hard size or file-count cap. |
@@ -43,6 +46,7 @@ The app is a client for each user's accounts, not a public portal into the opera
 - Switch accounts without mixing listings, selections, downloads, or credentials.
 - Remember connections using supported provider mechanisms. Remembering an account is not a guarantee of continuous authorization or permanent background access.
 - Handle expired sessions, revoked permissions, and denied consent with a clear reconnect path.
+- Google connections may be remembered as identities that require an explicit reconnect after page reload/return or authorization expiry. This provider-specific behavior is accepted for v1.
 - Provide a disconnect action that removes the app's locally held account state and credentials. Explain that disconnecting locally may not revoke provider consent or end provider-wide sign-in.
 - Never ask users to give the app their Microsoft or Google password directly.
 
@@ -64,6 +68,7 @@ The app is a client for each user's accounts, not a public portal into the opera
 - Include selected subfolders recursively and preserve relative directory structure.
 - Export Google Docs as DOCX, Sheets as XLSX, and Slides as PPTX where the provider supports that export.
 - Clearly report unsupported Google-native types or failed exports rather than silently omitting them.
+- An oversized Google-native export that fails the standard `files.export` endpoint's 10 MB per-export limit may be omitted with a clear report. Validating a larger-export alternative is optional future work, not a v1 launch gate. This provider limit is distinct from the warning-only policy for overall ZIP size.
 - Continue processing after individual item failures when possible. Deliver successful items with an understandable report of missing items and reasons.
 - Identify partial success explicitly; never label an incomplete archive as fully successful.
 - Show meaningful progress, warnings, and a cancellation action. Exact progress may be indeterminate during discovery or exports.
@@ -175,8 +180,8 @@ These details were not settled in the interview and are not confirmed requiremen
 
 | Question | Proposed direction / next action |
 | --- | --- |
-| Exact GitHub Pages URL and repository | Obtain before provider registration and routing setup. |
-| Existing provider registrations | Not established; inventory them before setup. |
+| Exact custom domain, GitHub Pages URL, and repository | Custom-domain hosting confirmed during feasibility research; obtain actual addresses before provider registration and routing setup. |
+| Provider registrations | Neither exists yet; document Microsoft and Google setup after the scope and domain decisions. |
 | Exact browser/version support matrix | Agree on current desktop and mobile targets before testing. |
 | Meaning of “lightweight” | Set a measurable initial-load JS budget after auth/ZIP feasibility is understood. |
 | Large-job warning thresholds | Base on testing; distinguish byte count, file count, and unknown export sizes. |
