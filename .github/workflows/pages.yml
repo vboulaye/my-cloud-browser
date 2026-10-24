@@ -1,0 +1,52 @@
+name: Deploy static site to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - uses: actions/configure-pages@v5
+        id: pages
+      - name: Build static site
+        run: npm run build
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          PUBLIC_MICROSOFT_CLIENT_ID: ${{ vars.PUBLIC_MICROSOFT_CLIENT_ID }}
+          PUBLIC_MICROSOFT_REDIRECT_URI: ${{ vars.PUBLIC_MICROSOFT_REDIRECT_URI }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

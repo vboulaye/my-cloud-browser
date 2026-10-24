@@ -42,6 +42,8 @@ These are deployment prerequisites to document and validate, not actions already
 
 **Recommendation:** Evaluate zip.js with a Blob output fallback first, plus a native file-stream output where available. Do not make the native API mandatory for v1. Keep archive code lazy-loaded and measure the production bundle before selecting a library permanently.
 
+**Initial implementation behavior:** The OneDrive prototype lazy-loads the ZIP code only when a download is requested. It warns (without rejecting) when known aggregate size exceeds 100 MiB, when any file size is unknown, or when a folder contains more than 500 files. These are provisional UX warning thresholds, not capacity guarantees or hard caps; revise them after mobile testing. The fallback download waits for the user to click a visible “Save ZIP” action, which is more compatible with browsers that restrict delayed programmatic downloads.
+
 ## 3. Recoverable file errors need deliberate buffering
 
 **Verified:** zip.js supports buffered entry writes, cancellation signals, and recovery/finalization after caught entry failures. It exposes `hasCorruptedEntries` for partially written entries; removing an entry from the central directory does not remove bytes already streamed to the output. Parallel entry writes can introduce per-entry buffering. [B6, B11]

@@ -1,6 +1,6 @@
 # Cloud Browser — Project Intent
 
-Status: requirements captured; implementation not started.
+Status: requirements captured; OneDrive implementation in progress. Google Drive support is planned but not implemented.
 
 This document records the product decisions from the initial requirements interview. See [the feasibility assessment](feasibility.md) for subsequent documentation research, constraints, and validation gates. Recommendations in that assessment do not change the confirmed requirements here without an explicit decision.
 
@@ -200,4 +200,4 @@ These details were not settled in the interview and are not confirmed requiremen
 
 ## 10. Next step
 
-Review this intent document, resolve the provider/authentication and mobile ZIP feasibility gates, and then write a small implementation plan. This document does not authorize adding future write features or silently changing privacy, Google scope, or deployment architecture.
+Implement and validate the read-only OneDrive slice first, including registration setup, pagination, account isolation, ZIP failure handling, and static deployment. Google verification and real-device mobile ZIP testing remain launch gates. This document does not authorize adding future write features or silently changing privacy, Google scope, or deployment architecture.
