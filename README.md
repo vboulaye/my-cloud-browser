@@ -46,7 +46,9 @@ Restart the dev server after changing `.env`. These values are embedded in the b
 
 ### GitHub Pages deployment
 
-The included Pages workflow reads the client ID from a GitHub Actions **repository variable**:
+First, in **Repository Settings → Pages**, choose **GitHub Actions** as the build and deployment source. If using a custom domain, add it in the Pages settings and configure/verify its DNS before registering its final OAuth redirect URI. The workflow deploys `main` and supports manual runs from the Actions tab.
+
+The included Pages workflow reads the client ID from a GitHub Actions **repository variable** and writes the public configuration to a temporary `.env` file before building:
 
 1. Open the GitHub repository's **Settings → Secrets and variables → Actions → Variables**.
 2. Add a variable named `PUBLIC_MICROSOFT_CLIENT_ID` with the Application (client) ID.
