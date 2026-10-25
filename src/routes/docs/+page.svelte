@@ -13,7 +13,7 @@
 	<p>Cloud Browser is a static website. Microsoft sign-in and OneDrive API requests run in your browser.</p>
 	<ul>
 		<li>The app requests delegated read-only <code>Files.Read</code> access.</li>
-		<li>Files are downloaded from Microsoft directly to this browser and assembled into a ZIP locally.</li>
+		<li>File and folder thumbnails, when available, are loaded by this browser from URLs supplied by Microsoft Graph. Files are downloaded from Microsoft directly to this browser and assembled into a ZIP locally.</li>
 		<li>The app does not send your file content or access tokens to an app backend and does not run app-controlled analytics.</li>
 		<li>Microsoft and the static-site host may process their own requests and operational logs.</li>
 		<li>Use “Disconnect account” to clear this app's local Microsoft connection. This does not sign you out of Microsoft everywhere.</li>

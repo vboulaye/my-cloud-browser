@@ -103,6 +103,9 @@ export class OneDriveClient {
 				'webUrl'
 			].join(',')
 		});
+		// Personal OneDrive supports expanding thumbnails with its child listing API.
+		// Recursive download traversal passes a signal and does not need preview metadata.
+		if (!signal) query.set('$expand', 'thumbnails');
 		let next: string | undefined = `${initialUrl}?${query}`;
 		const results: DriveItem[] = [];
 

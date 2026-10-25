@@ -7,7 +7,19 @@ export interface DriveItem {
 	package?: { type?: string };
 	lastModifiedDateTime?: string;
 	webUrl?: string;
+	thumbnails?: DriveThumbnailSet[];
 	'@microsoft.graph.downloadUrl'?: string;
+}
+
+export interface DriveThumbnail {
+	url?: string;
+	width?: number;
+	height?: number;
+}
+
+export interface DriveThumbnailSet {
+	small?: DriveThumbnail;
+	medium?: DriveThumbnail;
 }
 
 export interface DriveAccount {

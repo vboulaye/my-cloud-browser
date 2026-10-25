@@ -4,7 +4,12 @@ import { CHILDREN_CACHE_TTL_MS, OneDriveClient } from './client';
 describe('OneDriveClient', () => {
 	it('reuses a recent folder listing instead of requesting the same Graph children again', async () => {
 		const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify({
-			value: [{ id: 'folder-1', name: 'Folder', folder: { childCount: 1 } }]
+			value: [{
+				id: 'folder-1',
+				name: 'Folder',
+				folder: { childCount: 1 },
+				thumbnails: [{ small: { url: 'https://thumbnail.example.test/small.jpg' } }]
+			}]
 		})));
 		const client = new OneDriveClient(async () => 'test-token', fetcher);
 
@@ -13,6 +18,8 @@ describe('OneDriveClient', () => {
 
 		expect(first).toEqual(second);
 		expect(fetcher).toHaveBeenCalledTimes(1);
+		expect(new URL(String(fetcher.mock.calls[0][0])).searchParams.get('$expand')).toBe('thumbnails');
+		expect(first[0].thumbnails?.[0].small?.url).toBe('https://thumbnail.example.test/small.jpg');
 		first[0].name = 'Changed by caller';
 		expect((await client.listChildren(null))[0].name).toBe('Folder');
 	});

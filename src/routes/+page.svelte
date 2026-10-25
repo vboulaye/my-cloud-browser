@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import type { DownloadProgress } from '../lib/download/archive';
+	import ItemThumbnail from '../lib/components/ItemThumbnail.svelte';
 	import { formatBytes, formatDate } from '../lib/format';
 	import { OneDriveClient } from '../lib/onedrive/client';
 	import type { OneDriveAuth } from '../lib/onedrive/auth';
@@ -20,6 +21,7 @@
 	let folderStack = $state<Breadcrumb[]>([{ id: '', name: 'My files' }]);
 	let selectedIds = $state<string[]>([]);
 	let isListing = $state(false);
+	let viewMode = $state<'list' | 'grid'>('list');
 	let listingError = $state('');
 	let jobState = $state<JobState>('idle');
 	let jobProgress = $state<DownloadProgress | undefined>();
@@ -44,7 +46,16 @@
 	};
 	const fixtureItems: Record<string, DriveItem[]> = {
 		root: [
-			{ id: 'fixture-documents', name: 'Documents', folder: { childCount: 4 } }
+			{
+				id: 'fixture-documents',
+				name: 'Documents',
+				folder: { childCount: 4 },
+				thumbnails: [{
+					small: { url: 'https://thumbnail.example.test/documents-small.png' },
+					medium: { url: 'https://thumbnail.example.test/documents-medium.png' }
+				}]
+			},
+			{ id: 'fixture-budget', name: 'Budget.xlsx', size: 24_000, file: { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' } }
 		],
 		'fixture-documents': [
 			{ id: 'fixture-notes', name: 'Invoices and notes', folder: { childCount: 1 } },
@@ -411,6 +422,10 @@
 						</div>
 						<div class="title-actions">
 							<button class="refresh-button" disabled={isListing || jobState === 'running'} onclick={refreshCurrentFolder} title="Fetch this folder from OneDrive again">↻ <span>Refresh</span></button>
+							<div class="view-toggle" role="group" aria-label="File display mode">
+								<button class:view-active={viewMode === 'list'} class="view-button" aria-pressed={viewMode === 'list'} onclick={() => (viewMode = 'list')}>List</button>
+								<button class:view-active={viewMode === 'grid'} class="view-button" aria-pressed={viewMode === 'grid'} onclick={() => (viewMode = 'grid')}>Grid</button>
+							</div>
 							<div class="account-avatar" aria-hidden="true">{(accounts.find((account) => account.homeAccountId === activeAccountId)?.name || 'M').slice(0, 1).toUpperCase()}</div>
 						</div>
 					</div>
@@ -481,7 +496,7 @@
 						<div class="empty-state"><div class="spinner" aria-hidden="true"></div><h2>Loading your files</h2><p>Fetching the folder contents from Microsoft…</p></div>
 					{:else if items.length === 0}
 						<div class="empty-state"><div class="empty-icon">⌂</div><h2>This folder is empty</h2><p>There are no files or folders to show here.</p></div>
-					{:else}
+					{:else if viewMode === 'list'}
 						<div class="table-wrap">
 							<table>
 								<thead>
@@ -498,7 +513,7 @@
 										<tr class:selected={selectedIds.includes(item.id)}>
 											<td class="check-cell"><input type="checkbox" aria-label={`Select ${item.name}`} checked={selectedIds.includes(item.id)} onchange={() => toggleSelected(item.id)} /></td>
 											<td class="name-cell">
-												<span class:folder-icon={isFolder(item)} class="file-icon" aria-hidden="true">{isFolder(item) ? '▰' : '▤'}</span>
+												<ItemThumbnail {item} size="list" />
 												{#if isFolder(item)}
 													<button class="item-name folder-name" onclick={() => openFolder(item)}>{item.name}</button>
 												{:else}
@@ -513,6 +528,37 @@
 									{/each}
 								</tbody>
 							</table>
+						</div>
+					{:else}
+						<div class="grid-view">
+							<div class="grid-toolbar">
+								<label><input type="checkbox" aria-label="Select all visible items" checked={allSelected} onchange={toggleAll} /> Select all</label>
+								<span>{items.length} item{items.length === 1 ? '' : 's'}</span>
+							</div>
+							<div class="file-grid">
+								{#each sortedItems as item (item.id)}
+									<article class:grid-selected={selectedIds.includes(item.id)} class="grid-card">
+										<label class="grid-checkbox">
+											<input type="checkbox" aria-label={`Select ${item.name}`} checked={selectedIds.includes(item.id)} onchange={() => toggleSelected(item.id)} />
+										</label>
+										{#if isFolder(item)}
+											<button class="grid-open" onclick={() => openFolder(item)}>
+												<span class="grid-media">
+													<ItemThumbnail {item} size="grid" />
+													<span class="grid-name">{item.name}</span>
+												</span>
+											</button>
+										{:else}
+											<button class="grid-file" aria-pressed={selectedIds.includes(item.id)} onclick={() => toggleSelected(item.id)}>
+												<span class="grid-media">
+													<ItemThumbnail {item} size="grid" />
+													<span class="grid-name">{item.name}</span>
+												</span>
+											</button>
+										{/if}
+									</article>
+								{/each}
+							</div>
 						</div>
 					{/if}
 					<div class="list-footer">{items.length} item{items.length === 1 ? '' : 's'} in this folder <span>Selection clears when you navigate.</span></div>
@@ -579,6 +625,9 @@
 	.refresh-button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid #e4e7ec; border-radius: 7px; background: #fff; color: #475467; font-size: 11px; cursor: pointer; }
 	.refresh-button:hover:not(:disabled) { border-color: #b2ccff; color: #175cd3; background: #f8faff; }
 	.refresh-button:disabled { cursor: wait; opacity: .6; }
+	.view-toggle { display: inline-flex; padding: 2px; border: 1px solid #e4e7ec; border-radius: 8px; background: #f9fafb; }
+	.view-button { padding: 6px 9px; border: 0; border-radius: 6px; background: transparent; color: #667085; font-size: 11px; cursor: pointer; }
+	.view-button.view-active { background: #fff; color: #175cd3; box-shadow: 0 1px 3px #1018281a; font-weight: 650; }
 	.panel-title-row h1 { margin: 5px 0 0; color: #172b4d; font-size: 25px; letter-spacing: -.6px; }
 	.account-avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: #e9f2ff; color: #175cd3; font-weight: 700; }
 	.breadcrumbs { display: flex; align-items: center; gap: 9px; min-height: 47px; margin: 10px 0 14px; color: #344054; font-size: 12px; }
@@ -616,12 +665,25 @@
 	.check-cell { width: 42px; text-align: center; padding: 0 6px; }
 	input[type="checkbox"] { width: 15px; height: 15px; accent-color: #175cd3; vertical-align: middle; cursor: pointer; }
 	.name-cell { display: flex; align-items: center; gap: 10px; }
-	.file-icon { flex: 0 0 22px; width: 22px; height: 25px; display: grid; place-items: center; border-radius: 5px; background: #f2f4f7; color: #667085; font-size: 13px; }
-	.file-icon.folder-icon { color: #175cd3; background: #eff6ff; }
 	.item-name { min-width: 0; overflow: hidden; color: #344054; text-overflow: ellipsis; white-space: nowrap; }
 	button.item-name { padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
 	button.item-name:hover { color: #175cd3; text-decoration: underline; }
 	.child-count { color: #98a2b3; font-size: 10px; }
+	.grid-view { width: 100%; }
+	.grid-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 3px 2px 11px; color: #667085; font-size: 11px; }
+	.grid-toolbar label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+	.file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+	.grid-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid #eaecf0; border-radius: 9px; background: #fff; transition: border-color .15s, background .15s; }
+	.grid-card:hover { border-color: #b2ccff; }
+	.grid-card.grid-selected { border-color: #84adff; background: #f5f8ff; }
+	.grid-checkbox { position: absolute; z-index: 2; top: 8px; left: 8px; display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid #e4e7ec; border-radius: 7px; background: #ffffffed; cursor: pointer; }
+	.grid-checkbox input { width: 18px; height: 18px; margin: 0; }
+	.grid-open, .grid-file { display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; }
+	.grid-open { cursor: pointer; }
+	.grid-media { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: #f2f4f7; }
+	.grid-media :global(.thumbnail img) { transition: transform .18s ease; }
+	.grid-open:hover .grid-media :global(.thumbnail img), .grid-file:hover .grid-media :global(.thumbnail img) { transform: scale(1.035); }
+	.grid-name { position: absolute; right: 0; bottom: 0; left: 0; display: -webkit-box; max-height: 56px; overflow: hidden; padding: 15px 9px 7px; background: linear-gradient(transparent, #101828c9); color: #fff; font-size: 11px; font-weight: 600; line-height: 15px; line-clamp: 2; overflow-wrap: anywhere; text-overflow: ellipsis; text-shadow: 0 1px 2px #0008; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 	.type-column { width: 110px; }
 	.size-column { width: 100px; white-space: nowrap; }
 	.modified-column { width: 125px; white-space: nowrap; }
@@ -650,9 +712,13 @@
 		.sidebar-action { grid-column: 2; grid-row: 2; width: auto; height: 38px; padding: 7px; white-space: nowrap; font-size: 10px; }
 		.file-panel { padding: 21px 13px 12px; }
 		.panel-title-row h1 { font-size: 22px; }
+		.title-actions { gap: 6px; }
+		.refresh-button { padding: 7px; }
+		.view-button { padding: 6px 7px; }
 		.breadcrumbs { overflow-x: auto; white-space: nowrap; }
 		.selection-bar { gap: 8px; padding: 8px; }
 		.download-button { gap: 6px; padding: 8px; }
+		.file-grid { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 9px; }
 		.list-footer { display: block; line-height: 1.7; }
 		.list-footer span { display: block; }
 		footer { padding: 12px 14px; font-size: 9px; }

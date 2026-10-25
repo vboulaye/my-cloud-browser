@@ -25,7 +25,8 @@ The app is a client for each user's accounts, not a public portal into the opera
 | Connection persistence | Remember connections across visits where provider-supported authentication allows it. |
 | Google reconnect | An explicit reconnect action after returning to the app or authorization expiry is acceptable; continuous authorization is not required. |
 | Initial permissions | Read-only; request write permissions only when write features arrive. |
-| Browsing | Basic folder navigation; no search, previews, sorting/filtering controls, or dedicated shared-with-me view required for v1. |
+| Browsing | Basic folder navigation; no search, full-content previews, sorting/filtering controls, or dedicated shared-with-me view required for v1. |
+| File presentation | Offer list and grid views. List rows include compact provider thumbnails where available; grid cards emphasize thumbnails and names for touch-friendly selection. |
 | Selection | Multiple files and folders in the current folder only; navigating to another folder clears selection. |
 | Downloads | One ZIP per action for selected items or an entire folder, preserving directory structure. |
 | Google-native documents | Export Docs, Sheets, and Slides to DOCX, XLSX, and PPTX respectively. |
@@ -55,6 +56,8 @@ The app is a client for each user's accounts, not a public portal into the opera
 - Show a connected account's normal drive hierarchy, starting at its root.
 - Navigate into folders and back through breadcrumbs.
 - Distinguish files and folders; show useful available metadata without making previews necessary.
+- Offer list and grid presentations, with compact thumbnails when the provider supplies them and a clear icon fallback otherwise.
+- Make the grid useful on touch screens: visible selection controls, readable filenames, and folders that remain straightforward to open.
 - Support selecting multiple files and folders from the visible folder, including select-all and clear-selection actions.
 - Display the selection count and make selection usable with touch and keyboard input.
 - Clear selection when changing folder or account. Cross-folder and cross-account baskets are not part of v1.
@@ -171,6 +174,7 @@ The first release is acceptable when all of these can be demonstrated within the
 10. The main flows work on representative desktop, Android, and iOS browsers.
 11. Disconnect removes the app's local access state; normal operation sends no app telemetry and exposes no credentials in logs or reports.
 12. The production GitHub Pages URL supports navigation, refresh, and authentication callbacks.
+13. List and grid views show item names independently from thumbnail and folder-count metadata; missing thumbnails use a fallback icon, and grid selection/folder navigation work on touch-sized layouts.
 
 Any agreed reduction of Google scope must update these criteria explicitly.
 
