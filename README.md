@@ -61,6 +61,7 @@ For the shorter in-app checklist, see [OneDrive setup](src/routes/docs/onedrive-
 
 - `npm run check` — Svelte and TypeScript checks
 - `npm test` — unit tests for Graph requests and ZIP failure handling
+- `npm run test:browser` — browser smoke test for folder names and navigation (requires Google Chrome; set `CHROME_BIN` if it is elsewhere)
 - `npm run build` — prerender to the static `build/` directory
 
 `BASE_PATH` can be supplied at build time for a GitHub Pages project site. For a root custom domain, leave it unset. Public configuration is compiled into the browser bundle; never add a client secret.

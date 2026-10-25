@@ -35,9 +35,38 @@
 		if (!a.folder && b.folder) return 1;
 		return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 	}));
+	const fixtureAccount: DriveAccount = {
+		homeAccountId: 'dev-fixture-account',
+		localAccountId: 'dev-fixture-account',
+		username: 'fixture@example.test',
+		name: 'Drive UI fixture'
+	};
+	const fixtureItems: Record<string, DriveItem[]> = {
+		root: [
+			{ id: 'fixture-documents', name: 'Documents', folder: { childCount: 4 } }
+		],
+		'fixture-documents': [
+			{ id: 'fixture-notes', name: 'Invoices and notes', folder: { childCount: 1 } },
+			{ id: 'fixture-readme', name: 'Readme.pdf', size: 8_000, file: { mimeType: 'application/pdf' } }
+		]
+	};
+
+	function isDriveListFixture(): boolean {
+		return import.meta.env.DEV && new URLSearchParams(window.location.search).get('fixture') === 'drive-list';
+	}
 
 	onMount(() => {
 		let cancelled = false;
+		if (isDriveListFixture()) {
+			accounts = [fixtureAccount];
+			activeAccountId = fixtureAccount.homeAccountId;
+			authState = 'ready';
+			void loadFolder(null, [{ id: '', name: 'My files' }]);
+			return () => {
+				cancelled = true;
+				activeJobController?.abort();
+			};
+		}
 		void import('../lib/onedrive/auth')
 			.then(({ createOneDriveAuth }) => createOneDriveAuth((found, activeId) => {
 				if (cancelled) return;
@@ -69,6 +98,11 @@
 	});
 
 	function getDriveClient(accountId = activeAccountId): OneDriveClient {
+		if (isDriveListFixture()) {
+			return {
+				listChildren: async (folderId: string | null) => fixtureItems[folderId ?? 'root'] ?? []
+			} as unknown as OneDriveClient;
+		}
 		if (!auth) throw new Error('Microsoft sign-in is still starting.');
 		return new OneDriveClient(() => auth!.getToken(accountId));
 	}
@@ -562,7 +596,7 @@
 	tr.selected td { background: #f5f8ff; }
 	.check-cell { width: 42px; text-align: center; padding: 0 6px; }
 	input[type="checkbox"] { width: 15px; height: 15px; accent-color: #175cd3; vertical-align: middle; cursor: pointer; }
-	.name-cell { display: flex; align-items: center; gap: 10px; max-width: 0; }
+	.name-cell { display: flex; align-items: center; gap: 10px; }
 	.file-icon { flex: 0 0 22px; width: 22px; height: 25px; display: grid; place-items: center; border-radius: 5px; background: #f2f4f7; color: #667085; font-size: 13px; }
 	.file-icon.folder-icon { color: #175cd3; background: #eff6ff; }
 	.item-name { min-width: 0; overflow: hidden; color: #344054; text-overflow: ellipsis; white-space: nowrap; }
