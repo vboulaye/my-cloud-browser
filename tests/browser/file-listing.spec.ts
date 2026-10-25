@@ -16,12 +16,31 @@ test('shows folder names separately from child counts and opens folders', async 
 	await expect(folderName).toHaveJSProperty('textContent', 'Documents');
 	await expect(nameCell.locator('.thumbnail-list')).toBeVisible();
 	await expect(nameCell.locator('.thumbnail-list img')).toHaveAttribute('src', 'https://thumbnail.example.test/documents-small.png');
+	const listPreview = page.getByRole('button', { name: 'Preview Beach.jpg' });
+	await listPreview.click();
+	const listDialog = page.getByRole('dialog', { name: 'Image preview: Beach.jpg' });
+	await expect(listDialog).toBeVisible();
+	await expect(listDialog.locator('img')).toHaveAttribute('src', 'https://thumbnail.example.test/beach-large.png');
+	await listDialog.getByRole('button', { name: 'Close preview of Beach.jpg' }).click();
+	await expect(listDialog).toBeHidden();
+	await listPreview.click();
+	await page.keyboard.press('Escape');
+	await expect(listDialog).toBeHidden();
 
 	await page.getByRole('button', { name: 'Grid', exact: true }).click();
 	const gridFolder = page.getByRole('button', { name: 'Documents', exact: true });
 	await expect(gridFolder).toBeVisible();
 	await expect(gridFolder.locator('.thumbnail-grid')).toBeVisible();
 	await expect(gridFolder.locator('.thumbnail-grid img')).toHaveAttribute('src', 'https://thumbnail.example.test/documents-medium.png');
+	const gridPreview = page.getByRole('button', { name: 'Preview Beach.jpg' });
+	await gridPreview.click();
+	const gridDialog = page.getByRole('dialog', { name: 'Image preview: Beach.jpg' });
+	await expect(gridDialog).toBeVisible();
+	await gridDialog.getByRole('button', { name: 'Close image preview' }).click();
+	await expect(gridDialog).toBeHidden();
+	const gridCheckbox = gridFolder.locator('..').locator('.grid-checkbox');
+	await expect(gridCheckbox).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+	await expect(gridCheckbox).toHaveCSS('border-top-style', 'none');
 	const gridCaption = gridFolder.locator('.grid-name');
 	await expect(gridCaption).toHaveCSS('position', 'absolute');
 	const captionAtBottom = await gridCaption.evaluate((caption) => {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import type { DownloadProgress } from '../lib/download/archive';
 	import ItemThumbnail from '../lib/components/ItemThumbnail.svelte';
@@ -10,6 +10,7 @@
 
 	type AuthState = 'loading' | 'ready' | 'unconfigured' | 'error';
 	type JobState = 'idle' | 'running' | 'ready' | 'done' | 'error' | 'cancelled';
+	type ImagePreview = { item: DriveItem; url: string };
 
 	let authState = $state<AuthState>('loading');
 	let authError = $state('');
@@ -29,6 +30,9 @@
 	let jobFailures = $state<string[]>([]);
 	let readyDownloadUrl = $state('');
 	let readyDownloadName = $state('');
+	let imagePreview = $state<ImagePreview | undefined>();
+	let previewTrigger: HTMLElement | undefined;
+	let previewDialogElement = $state<HTMLDialogElement | undefined>();
 	let activeJobController: AbortController | undefined;
 
 	const selectedItems = $derived(items.filter((item) => selectedIds.includes(item.id)));
@@ -55,7 +59,18 @@
 					medium: { url: 'https://thumbnail.example.test/documents-medium.png' }
 				}]
 			},
-			{ id: 'fixture-budget', name: 'Budget.xlsx', size: 24_000, file: { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' } }
+			{ id: 'fixture-budget', name: 'Budget.xlsx', size: 24_000, file: { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' } },
+			{
+				id: 'fixture-photo',
+				name: 'Beach.jpg',
+				size: 24_000,
+				file: { mimeType: 'image/jpeg' },
+				thumbnails: [{
+					small: { url: 'https://thumbnail.example.test/beach-small.png' },
+					medium: { url: 'https://thumbnail.example.test/beach-medium.png' },
+					large: { url: 'https://thumbnail.example.test/beach-large.png' }
+				}]
+			}
 		],
 		'fixture-documents': [
 			{ id: 'fixture-notes', name: 'Invoices and notes', folder: { childCount: 1 } },
@@ -329,6 +344,49 @@
 		if (href === '/docs/') return resolve('/docs');
 		return resolve('/docs/onedrive-setup');
 	}
+
+	function imagePreviewUrl(item: DriveItem): string | undefined {
+		if (!item.file || isFolder(item)) return undefined;
+		const mimeType = item.file.mimeType?.toLowerCase() ?? '';
+		const imageExtension = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|tiff?|webp)$/i.test(item.name);
+		if (!mimeType.startsWith('image/') && !imageExtension) return undefined;
+		const candidate = item.thumbnails?.[0]?.large?.url
+			?? item.thumbnails?.[0]?.medium?.url
+			?? item.thumbnails?.[0]?.small?.url;
+		if (!candidate) return undefined;
+		try {
+			return new URL(candidate).protocol === 'https:' ? candidate : undefined;
+		} catch {
+			return undefined;
+		}
+	}
+
+	async function openImagePreview(event: MouseEvent, item: DriveItem): Promise<void> {
+		const url = imagePreviewUrl(item);
+		if (!url) return;
+		event.stopPropagation();
+		previewTrigger = event.currentTarget as HTMLElement;
+		imagePreview = { item, url };
+		await tick();
+		if (previewDialogElement && !previewDialogElement.open) previewDialogElement.showModal();
+		previewDialogElement?.querySelector('button')?.focus();
+	}
+
+	function closeImagePreview(): void {
+		if (previewDialogElement?.open) previewDialogElement.close();
+		imagePreview = undefined;
+		requestAnimationFrame(() => previewTrigger?.focus());
+	}
+
+	function handlePreviewCancel(event: Event): void {
+		event.preventDefault();
+		closeImagePreview();
+	}
+
+	function handlePreviewClick(event: MouseEvent): void {
+		if (event.target === event.currentTarget) closeImagePreview();
+	}
+
 </script>
 
 <svelte:head>
@@ -513,7 +571,12 @@
 										<tr class:selected={selectedIds.includes(item.id)}>
 											<td class="check-cell"><input type="checkbox" aria-label={`Select ${item.name}`} checked={selectedIds.includes(item.id)} onchange={() => toggleSelected(item.id)} /></td>
 											<td class="name-cell">
-												<ItemThumbnail {item} size="list" />
+												<span class="list-thumbnail-wrap">
+													<ItemThumbnail {item} size="list" />
+													{#if imagePreviewUrl(item)}
+													<button class="preview-button preview-list" aria-label={`Preview ${item.name}`} aria-haspopup="dialog" aria-controls="image-preview-dialog" title={`Open a larger preview of ${item.name}`} onclick={(event) => openImagePreview(event, item)}><span class="preview-glyph">⤢</span></button>
+													{/if}
+												</span>
 												{#if isFolder(item)}
 													<button class="item-name folder-name" onclick={() => openFolder(item)}>{item.name}</button>
 												{:else}
@@ -549,12 +612,13 @@
 												</span>
 											</button>
 										{:else}
-											<button class="grid-file" aria-pressed={selectedIds.includes(item.id)} onclick={() => toggleSelected(item.id)}>
-												<span class="grid-media">
-													<ItemThumbnail {item} size="grid" />
-													<span class="grid-name">{item.name}</span>
-												</span>
-											</button>
+											<div class="grid-media">
+												<ItemThumbnail {item} size="grid" />
+												<button class="grid-file-select" aria-pressed={selectedIds.includes(item.id)} onclick={() => toggleSelected(item.id)}><span class="grid-name">{item.name}</span></button>
+												{#if imagePreviewUrl(item)}
+													<button class="preview-button preview-grid" aria-label={`Preview ${item.name}`} aria-haspopup="dialog" aria-controls="image-preview-dialog" title={`Open a larger preview of ${item.name}`} onclick={(event) => openImagePreview(event, item)}><span class="preview-glyph">⤢</span></button>
+												{/if}
+											</div>
 										{/if}
 									</article>
 								{/each}
@@ -568,6 +632,16 @@
 	</main>
 	<footer><span>Files move directly from Microsoft to your browser.</span><span>Cloud Browser · Read-only v0.1</span></footer>
 </div>
+
+{#if imagePreview}
+	<dialog id="image-preview-dialog" bind:this={previewDialogElement} class="preview-dialog" aria-label={`Image preview: ${imagePreview.item.name}`} onclick={handlePreviewClick} oncancel={handlePreviewCancel}>
+		<button class="preview-close" aria-label="Close image preview" onclick={closeImagePreview}>×</button>
+		<button class="preview-image-button" aria-label={`Close preview of ${imagePreview.item.name}`} onclick={closeImagePreview}>
+			<img class="preview-full-image" src={imagePreview.url} alt="" referrerpolicy="no-referrer" />
+		</button>
+			<p class="preview-full-name">{imagePreview.item.name}</p>
+	</dialog>
+{/if}
 
 <style>
 	:global(*) { box-sizing: border-box; }
@@ -665,6 +739,7 @@
 	.check-cell { width: 42px; text-align: center; padding: 0 6px; }
 	input[type="checkbox"] { width: 15px; height: 15px; accent-color: #175cd3; vertical-align: middle; cursor: pointer; }
 	.name-cell { display: flex; align-items: center; gap: 10px; }
+	.list-thumbnail-wrap { position: relative; display: flex; width: 36px; height: 32px; flex: 0 0 36px; align-items: center; justify-content: center; }
 	.item-name { min-width: 0; overflow: hidden; color: #344054; text-overflow: ellipsis; white-space: nowrap; }
 	button.item-name { padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
 	button.item-name:hover { color: #175cd3; text-decoration: underline; }
@@ -676,14 +751,27 @@
 	.grid-card { position: relative; min-width: 0; overflow: hidden; border: 1px solid #eaecf0; border-radius: 9px; background: #fff; transition: border-color .15s, background .15s; }
 	.grid-card:hover { border-color: #b2ccff; }
 	.grid-card.grid-selected { border-color: #84adff; background: #f5f8ff; }
-	.grid-checkbox { position: absolute; z-index: 2; top: 8px; left: 8px; display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid #e4e7ec; border-radius: 7px; background: #ffffffed; cursor: pointer; }
-	.grid-checkbox input { width: 18px; height: 18px; margin: 0; }
-	.grid-open, .grid-file { display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; }
-	.grid-open { cursor: pointer; }
+	.grid-checkbox { position: absolute; z-index: 2; top: 8px; left: 8px; display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 0; background: transparent; cursor: pointer; }
+	.grid-checkbox input { width: 20px; height: 20px; margin: 0; accent-color: #175cd3; filter: drop-shadow(0 1px 2px #0008); }
+	.grid-open { display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 	.grid-media { position: relative; display: block; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: #f2f4f7; }
-	.grid-media :global(.thumbnail img) { transition: transform .18s ease; }
-	.grid-open:hover .grid-media :global(.thumbnail img), .grid-file:hover .grid-media :global(.thumbnail img) { transform: scale(1.035); }
+	.grid-file-select { position: absolute; z-index: 1; inset: 0; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+	.grid-media:hover :global(.thumbnail img) { transform: scale(1.035); }
 	.grid-name { position: absolute; right: 0; bottom: 0; left: 0; display: -webkit-box; max-height: 56px; overflow: hidden; padding: 15px 9px 7px; background: linear-gradient(transparent, #101828c9); color: #fff; font-size: 11px; font-weight: 600; line-height: 15px; line-clamp: 2; overflow-wrap: anywhere; text-overflow: ellipsis; text-shadow: 0 1px 2px #0008; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+	.preview-button { position: absolute; z-index: 3; display: grid; place-items: center; padding: 0; border: 0; background: transparent; cursor: pointer; }
+	.preview-list { right: -2px; bottom: -1px; width: 23px; height: 23px; }
+	.preview-grid { right: 6px; bottom: 6px; width: 38px; height: 38px; }
+	.preview-glyph { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid #ffffffad; border-radius: 50%; background: #101828b8; color: #fff; font-size: 14px; line-height: 1; box-shadow: 0 1px 4px #0006; }
+	.preview-grid .preview-glyph { width: 30px; height: 30px; font-size: 17px; }
+	.preview-button:hover .preview-glyph { background: #175cd3; }
+	.preview-dialog:not([open]) { display: none; }
+	.preview-dialog { position: fixed; z-index: 1000; inset: 0; display: grid; width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 20px; border: 0; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; background: #101828ed; color: #fff; }
+	.preview-dialog::backdrop { background: #101828ed; }
+	.preview-image-button { display: grid; width: 100%; height: 100%; min-width: 0; min-height: 0; place-items: center; padding: 0; border: 0; background: transparent; cursor: zoom-out; }
+	.preview-full-image { min-width: 0; min-height: 0; max-width: 100%; max-height: 100%; align-self: center; object-fit: contain; }
+	.preview-full-name { max-width: 100%; margin: 8px 0 0; overflow: hidden; color: #fff; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+	.preview-close { position: absolute; z-index: 1; top: 8px; right: 8px; display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid #ffffff66; border-radius: 50%; background: #101828b8; color: #fff; font-size: 28px; line-height: 1; cursor: pointer; }
+	.preview-close:hover { background: #344054; }
 	.type-column { width: 110px; }
 	.size-column { width: 100px; white-space: nowrap; }
 	.modified-column { width: 125px; white-space: nowrap; }
@@ -719,6 +807,8 @@
 		.selection-bar { gap: 8px; padding: 8px; }
 		.download-button { gap: 6px; padding: 8px; }
 		.file-grid { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 9px; }
+		.preview-dialog { padding: 10px; }
+		.preview-close { top: 4px; right: 4px; }
 		.list-footer { display: block; line-height: 1.7; }
 		.list-footer span { display: block; }
 		footer { padding: 12px 14px; font-size: 9px; }

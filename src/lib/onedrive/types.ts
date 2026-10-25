@@ -20,6 +20,7 @@ export interface DriveThumbnail {
 export interface DriveThumbnailSet {
 	small?: DriveThumbnail;
 	medium?: DriveThumbnail;
+	large?: DriveThumbnail;
 }
 
 export interface DriveAccount {
