@@ -70,6 +70,7 @@ For the shorter in-app checklist, see [OneDrive setup](src/routes/docs/onedrive-
 
 - Microsoft delegated `Files.Read` only
 - Multiple personal Microsoft accounts, account switching, and local disconnect
+- Per-account in-memory folder-list cache (60-second TTL, bounded to 100 folders) with a manual Refresh action; it is cleared on page reload/disconnect
 - Folder browsing, pagination, current-folder selection, recursive ZIP download
 - Direct-to-disk output where the browser supports it, Blob download fallback otherwise
 - Partial ZIPs with an omission report for failed items

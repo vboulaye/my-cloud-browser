@@ -13,6 +13,7 @@
 	let authState = $state<AuthState>('loading');
 	let authError = $state('');
 	let auth: OneDriveAuth | undefined;
+	const driveClients = new Map<string, OneDriveClient>();
 	let accounts = $state<DriveAccount[]>([]);
 	let activeAccountId = $state('');
 	let items = $state<DriveItem[]>([]);
@@ -104,16 +105,21 @@
 			} as unknown as OneDriveClient;
 		}
 		if (!auth) throw new Error('Microsoft sign-in is still starting.');
-		return new OneDriveClient(() => auth!.getToken(accountId));
+		let client = driveClients.get(accountId);
+		if (!client) {
+			client = new OneDriveClient(() => auth!.getToken(accountId));
+			driveClients.set(accountId, client);
+		}
+		return client;
 	}
 
-	async function loadFolder(folderId: string | null, nextStack = folderStack): Promise<void> {
+	async function loadFolder(folderId: string | null, nextStack = folderStack, forceRefresh = false): Promise<void> {
 		if (!activeAccountId) return;
 		isListing = true;
 		listingError = '';
 		selectedIds = [];
 		try {
-			items = await getDriveClient().listChildren(folderId);
+			items = await getDriveClient().listChildren(folderId, undefined, { forceRefresh });
 			folderStack = nextStack;
 		} catch (error) {
 			listingError = error instanceof Error ? error.message : 'The folder could not be loaded.';
@@ -143,6 +149,11 @@
 		void loadFolder(folderId, nextStack);
 	}
 
+	function refreshCurrentFolder(): void {
+		const current = folderStack.at(-1);
+		if (current) void loadFolder(current.id || null, [...folderStack], true);
+	}
+
 	function toggleSelected(itemId: string): void {
 		selectedIds = selectedIds.includes(itemId)
 			? selectedIds.filter((id) => id !== itemId)
@@ -167,6 +178,7 @@
 
 	async function disconnectCurrent(): Promise<void> {
 		if (!auth || !activeAccountId) return;
+		driveClients.delete(activeAccountId);
 		await auth.removeAccount(activeAccountId);
 		accounts = auth.accounts();
 		activeAccountId = accounts[0]?.homeAccountId ?? '';
@@ -397,7 +409,10 @@
 							<div class="eyebrow">YOUR FILES</div>
 							<h1>OneDrive</h1>
 						</div>
-						<div class="account-avatar" aria-hidden="true">{(accounts.find((account) => account.homeAccountId === activeAccountId)?.name || 'M').slice(0, 1).toUpperCase()}</div>
+						<div class="title-actions">
+							<button class="refresh-button" disabled={isListing || jobState === 'running'} onclick={refreshCurrentFolder} title="Fetch this folder from OneDrive again">↻ <span>Refresh</span></button>
+							<div class="account-avatar" aria-hidden="true">{(accounts.find((account) => account.homeAccountId === activeAccountId)?.name || 'M').slice(0, 1).toUpperCase()}</div>
+						</div>
 					</div>
 
 					<nav class="breadcrumbs" aria-label="Folder breadcrumbs">
@@ -560,6 +575,10 @@
 	.sidebar-bottom a { color: #667085; text-decoration: none; font-size: 11px; }
 	.file-panel { min-width: 0; padding: 30px clamp(20px, 4vw, 48px) 20px; }
 	.panel-title-row { display: flex; align-items: center; justify-content: space-between; }
+	.title-actions { display: flex; align-items: center; gap: 12px; }
+	.refresh-button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid #e4e7ec; border-radius: 7px; background: #fff; color: #475467; font-size: 11px; cursor: pointer; }
+	.refresh-button:hover:not(:disabled) { border-color: #b2ccff; color: #175cd3; background: #f8faff; }
+	.refresh-button:disabled { cursor: wait; opacity: .6; }
 	.panel-title-row h1 { margin: 5px 0 0; color: #172b4d; font-size: 25px; letter-spacing: -.6px; }
 	.account-avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: #e9f2ff; color: #175cd3; font-weight: 700; }
 	.breadcrumbs { display: flex; align-items: center; gap: 9px; min-height: 47px; margin: 10px 0 14px; color: #344054; font-size: 12px; }
